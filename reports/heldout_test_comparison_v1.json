@@ -1,0 +1,24 @@
+{
+  "experiment": "V1",
+  "dataset": "CICIDS2017 selected_v2",
+  "evaluation": "held-out test set",
+  "test_records": 386116,
+  "features": 58,
+  "thresholds": {
+    "BOT": 0.8,
+    "WEB_ATTACK": 0.8
+  },
+  "production": {
+    "accuracy": 0.988985,
+    "macro_precision": 0.799088,
+    "macro_recall": 0.913926,
+    "macro_f1": 0.844403
+  },
+  "experiment_v1": {
+    "accuracy": 0.992536,
+    "macro_precision": 0.860749,
+    "macro_recall": 0.897017,
+    "macro_f1": 0.876649
+  },
+  "decision": "Keep production unchanged. V1 is a research candidate; evaluate minority-class trade-offs before promotion."
+}

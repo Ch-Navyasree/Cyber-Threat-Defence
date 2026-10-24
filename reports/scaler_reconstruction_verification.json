@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "scaler_path": "D:\\Cyber Threat Defense\\models\\cicids2017_robust_scaler_with_features.joblib",
+  "feature_count": 69,
+  "fit_split": "train",
+  "verification": {
+    "train": {
+      "rows": 1801872,
+      "features": 69,
+      "max_absolute_difference": 0.0,
+      "matches_existing_transformation": true
+    },
+    "validation": {
+      "rows": 386116,
+      "features": 69,
+      "max_absolute_difference": 0.0,
+      "matches_existing_transformation": true
+    },
+    "test": {
+      "rows": 386116,
+      "features": 69,
+      "max_absolute_difference": 0.0,
+      "matches_existing_transformation": true
+    }
+  },
+  "note": "Reconstructed from the current final training split. Existing transformed splits were reproduced within tolerance. This does not prove the original historical scaler artifact was identical."
+}

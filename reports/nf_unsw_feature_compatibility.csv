@@ -1,0 +1,59 @@
+CICIDS2017_model_feature,External_candidate,Assessment
+Destination Port,L4_DST_PORT,Candidate: destination port
+Flow Duration,FLOW_DURATION_MILLISECONDS,Candidate: check units
+Total Fwd Packets,IN_PKTS,Candidate: verify direction
+Total Backward Packets,OUT_PKTS,Candidate: verify direction
+Total Length of Fwd Packets,IN_BYTES,Candidate: verify direction
+Total Length of Bwd Packets,OUT_BYTES,Candidate: verify direction
+Fwd Packet Length Max,LONGEST_FLOW_PKT,Partial candidate: direction may differ
+Fwd Packet Length Min,,No direct candidate identified; inspect definitions
+Fwd Packet Length Mean,,No direct candidate identified; inspect definitions
+Fwd Packet Length Std,,No direct candidate identified; inspect definitions
+Bwd Packet Length Max,,No direct candidate identified; inspect definitions
+Bwd Packet Length Min,SHORTEST_FLOW_PKT,Partial candidate: direction may differ
+Bwd Packet Length Std,,No direct candidate identified; inspect definitions
+Flow Bytes/s,SRC_TO_DST_SECOND_BYTES; DST_TO_SRC_SECOND_BYTES,Requires formula and unit validation
+Flow Packets/s,IN_PKTS; OUT_PKTS; FLOW_DURATION_MILLISECONDS,Potentially derived; validate definitions
+Flow IAT Mean,,No direct candidate identified; inspect definitions
+Flow IAT Std,,No direct candidate identified; inspect definitions
+Flow IAT Max,,No direct candidate identified; inspect definitions
+Flow IAT Min,,No direct candidate identified; inspect definitions
+Fwd IAT Total,,No direct candidate identified; inspect definitions
+Fwd IAT Mean,,No direct candidate identified; inspect definitions
+Fwd IAT Std,,No direct candidate identified; inspect definitions
+Fwd IAT Max,,No direct candidate identified; inspect definitions
+Fwd IAT Min,,No direct candidate identified; inspect definitions
+Bwd IAT Total,,No direct candidate identified; inspect definitions
+Bwd IAT Mean,,No direct candidate identified; inspect definitions
+Bwd IAT Std,,No direct candidate identified; inspect definitions
+Bwd IAT Max,,No direct candidate identified; inspect definitions
+Bwd IAT Min,,No direct candidate identified; inspect definitions
+Fwd PSH Flags,,No direct candidate identified; inspect definitions
+Fwd Header Length,,No direct candidate identified; inspect definitions
+Bwd Header Length,,No direct candidate identified; inspect definitions
+Fwd Packets/s,,No direct candidate identified; inspect definitions
+Bwd Packets/s,,No direct candidate identified; inspect definitions
+Min Packet Length,MIN_IP_PKT_LEN,Partial candidate: definition may differ
+Max Packet Length,MAX_IP_PKT_LEN,Partial candidate: definition may differ
+Packet Length Mean,,No direct candidate identified; inspect definitions
+Packet Length Std,,No direct candidate identified; inspect definitions
+Packet Length Variance,,No direct candidate identified; inspect definitions
+FIN Flag Count,TCP_FLAGS; CLIENT_TCP_FLAGS; SERVER_TCP_FLAGS,Not equivalent without flag semantics
+PSH Flag Count,,No direct candidate identified; inspect definitions
+ACK Flag Count,,No direct candidate identified; inspect definitions
+URG Flag Count,,No direct candidate identified; inspect definitions
+Down/Up Ratio,,No direct candidate identified; inspect definitions
+Average Packet Size,,No direct candidate identified; inspect definitions
+Avg Bwd Segment Size,,No direct candidate identified; inspect definitions
+Init_Win_bytes_forward,,No direct candidate identified; inspect definitions
+Init_Win_bytes_backward,,No direct candidate identified; inspect definitions
+act_data_pkt_fwd,,No direct candidate identified; inspect definitions
+min_seg_size_forward,,No direct candidate identified; inspect definitions
+Active Mean,,No direct candidate identified; inspect definitions
+Active Std,,No direct candidate identified; inspect definitions
+Active Max,,No direct candidate identified; inspect definitions
+Active Min,,No direct candidate identified; inspect definitions
+Idle Mean,,No direct candidate identified; inspect definitions
+Idle Std,,No direct candidate identified; inspect definitions
+Idle Max,,No direct candidate identified; inspect definitions
+Idle Min,,No direct candidate identified; inspect definitions
