@@ -1,0 +1,391 @@
+
+.attack-replay {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 16px;
+}
+
+.attack-replay-heading,
+.replay-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.attack-replay-heading h3 {
+  margin: 0 0 6px;
+}
+
+.attack-replay-heading p,
+.replay-current-stage p {
+  margin: 0;
+  opacity: .75;
+  line-height: 1.6;
+}
+
+.simulation-badge {
+  border: 1px solid #d97706;
+  color: #fbbf24;
+  border-radius: 20px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.replay-banner {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #111e30;
+  color: #e2e8f0;
+}
+
+.replay-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 10px #4ade80;
+  animation: replay-pulse 1.2s ease-in-out infinite;
+}
+
+.replay-banner strong {
+  flex: 1;
+}
+
+.replay-stage-caption {
+  font-size: 12px;
+  opacity: .75;
+}
+
+.network-scene {
+  overflow: hidden;
+  border-radius: 14px;
+  background: #081323;
+  border: 1px solid #334155;
+}
+
+.network-scene svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.traffic-path {
+  stroke-dasharray: 7 6;
+  animation: traffic-flow 1s linear infinite;
+}
+
+.network-scene.stage-2 .network-scene,
+.network-scene.stage-3 .network-scene {
+  border-color: #fbbf24;
+}
+
+.network-scene.stage-4 {
+  border-color: #4ade80;
+  box-shadow: 0 0 18px #22c55e18;
+}
+
+.pattern-normal {
+  border-color: #166534;
+}
+
+.pattern-flood {
+  border-color: #991b1b;
+}
+
+.pattern-scan {
+  border-color: #075985;
+}
+
+.pattern-login {
+  border-color: #6b21a8;
+}
+
+.pattern-web {
+  border-color: #9f1239;
+}
+
+.pattern-bot {
+  border-color: #6d28d9;
+}
+
+.replay-current-stage {
+  padding: 14px;
+  background: var(--panel-background, rgba(100, 116, 139, .08));
+  border-radius: 10px;
+}
+
+.replay-current-stage strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.replay-stage-list {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.replay-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: .55;
+}
+
+.replay-stage span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #334155;
+  color: white;
+  font-size: 12px;
+}
+
+.replay-stage.active {
+  opacity: 1;
+  font-weight: 700;
+}
+
+.replay-stage.active span {
+  background: #2563eb;
+}
+
+.replay-stage.complete {
+  opacity: .9;
+}
+
+.replay-stage.complete span {
+  background: #15803d;
+}
+
+.replay-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+}
+
+.replay-details p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.replay-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.replay-controls button {
+  padding: 10px 16px;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+}
+
+.replay-controls button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.replay-disclaimer {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: .7;
+}
+
+@keyframes traffic-flow {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+
+@keyframes replay-pulse {
+  50% {
+    opacity: .35;
+    transform: scale(.8);
+  }
+}
+
+@media (max-width: 760px) {
+  .replay-stage-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .replay-details {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .attack-replay {
+    padding: 12px;
+  }
+
+  .replay-stage-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .replay-live-dot {
+    animation: none;
+  }
+
+  .traffic-path {
+    animation: none;
+  }
+}
+/* Response-action visualization */
+.replay-response-panel {
+  padding: 16px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #111e30;
+  color: #e2e8f0;
+}
+
+.replay-response-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.replay-response-panel h4 {
+  margin: 8px 0;
+  font-size: 16px;
+}
+
+.replay-response-panel p {
+  margin: 6px 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.replay-response-note {
+  margin-top: 12px !important;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.response-rate-limit {
+  border-color: #fbbf24;
+}
+
+.response-filter,
+.response-login-block,
+.response-source-block {
+  border-color: #fb7185;
+}
+
+.response-review {
+  border-color: #60a5fa;
+}
+
+.response-monitor {
+  border-color: #35d49a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .replay-response-panel {
+    scroll-behavior: auto;
+  }
+}
+/* Improve text visibility inside the animated network replay */
+.network-scene svg text {
+  fill: #ffffff !important;
+  stroke: none;
+}
+
+/* Make node labels clearly readable */
+.network-scene svg .svg-node-label,
+.network-scene svg .svg-small-label {
+  fill: #ffffff !important;
+  font-weight: 600;
+}
+
+/* Improve response-stage text visibility */
+.network-scene svg .response-label,
+.network-scene svg .response-title {
+  fill: #ffffff !important;
+}
+
+/* Make stage descriptions and replay details readable */
+.replay-current-stage,
+.replay-current-stage strong,
+.replay-current-stage p,
+.replay-details,
+.replay-details p,
+.replay-details strong {
+  color: #ffffff;
+}
+
+/* Response simulation panel */
+.replay-response-panel {
+  color: #ffffff;
+}
+
+.replay-response-panel h4,
+.replay-response-panel p,
+.replay-response-panel strong {
+  color: #ffffff;
+}
+
+.replay-response-label {
+  color: #ffffff;
+}
+
+/* Improve contrast for stage labels and captions */
+.replay-stage-caption {
+  color: #ffffff;
+  opacity: 1;
+}
+
+.replay-stage {
+  color: #ffffff;
+}
+
+.replay-disclaimer {
+  color: #ffffff;
+  opacity: 0.9;
+}
+/* Fix black text inside the SVG network simulation */
+svg.network-scene text,
+.network-scene .svg-heading,
+.network-scene .svg-node-label,
+.network-scene .svg-small-label,
+.network-scene .svg-subheading,
+.network-scene .svg-alert-caption {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+  stroke: none !important;
+}
+
+/* Keep alert symbols clearly visible */
+.network-scene .alert-marker text {
+  fill: #ffffff !important;
+}
+
+/* Keep all labels readable in the response and verification boxes */
+.network-scene .response-indicator text,
+.network-scene .investigation-indicator text,
+.network-scene .verification-indicator text,
+.network-scene .inspection-node text {
+  fill: #ffffff !important;
+}

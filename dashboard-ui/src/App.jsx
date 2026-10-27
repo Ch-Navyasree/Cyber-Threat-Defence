@@ -1,16 +1,17 @@
-﻿
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
+import AttackReplay from "./components/AttackReplay";
 
 const API = "http://127.0.0.1:8000";
 
 const NAV = [
-  { id: "overview", label: "Overview", icon: "◫" },
-  { id: "investigation", label: "Threat Investigation", icon: "⌕" },
-  { id: "workflow", label: "Agent Workflow", icon: "◎" },
-  { id: "active-defense", label: "Active Defense", icon: "⛨" },
-  { id: "intelligence", label: "Threat Intelligence", icon: "⌘" },
-  { id: "audit", label: "Audit Records", icon: "▤" },
+  { id: "overview", label: "Overview", icon: "" },
+  { id: "investigation", label: "Threat Investigation", icon: "" },
+  { id: "workflow", label: "Agent Workflow", icon: "" },
+  { id: "active-defense", label: "Active Defense", icon: "" },
+  { id: "attack-simulation", label: "Attack Simulation", icon: "" },
+  { id: "intelligence", label: "Threat Intelligence", icon: "" },
+  { id: "audit", label: "Audit Records", icon: "" },
 ];
 
 function pretty(value) {
@@ -18,7 +19,30 @@ function pretty(value) {
   if (typeof value === "object") return JSON.stringify(value, null, 2);
   return String(value);
 }
+function getAttackName(sample) {
+  return sample?.actual_label ||
+    sample?.label ||
+    sample?.attack_type ||
+    "Unknown";
+}
+function normalizeLabel(value) {
+  const label = String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
 
+  const aliases = {
+    DDOS: "DDOS",
+    DOS: "DOS",
+    BRUTE_FORCE: "BRUTE_FORCE",
+    PORT_SCAN: "PORT_SCAN",
+    WEB_ATTACK: "WEB_ATTACK",
+    BENIGN: "BENIGN",
+    BOT: "BOT",
+  };
+
+  return aliases[label] || label;
+}
 function formatTimestamp(value) {
   if (!value) return "—";
 
@@ -146,6 +170,13 @@ export default function App() {
   const [simulationBusy, setSimulationBusy] = useState(false);
   const [simulationError, setSimulationError] = useState("");
 
+  // Attack Simulation page state.
+  const [attackSimulationBusy, setAttackSimulationBusy] = useState(false);
+  const [attackSimulationError, setAttackSimulationError] = useState("");
+  const [attackSimulationResult, setAttackSimulationResult] = useState(null);
+  const [attackSimulationSampleId, setAttackSimulationSampleId] = useState("");
+  const [attackEventCount, setAttackEventCount] = useState("100");
+
   const selectedSample = samples.find(
     (sample) => String(sample.id) === selectedSampleId
   );
@@ -166,7 +197,7 @@ export default function App() {
 
   const loadAudit = useCallback(async () => {
     try {
-      const response = await fetch(`${API}/api/audit?limit=100`);
+      const response = await fetch(`${API}/api/audit?limit=500`);
 
       if (!response.ok) {
         throw new Error("Could not load audit records");
@@ -190,7 +221,7 @@ export default function App() {
       );
     }
   }, []);
-
+  
   const loadSamples = useCallback(async () => {
     setSamplesLoading(true);
 
@@ -202,7 +233,16 @@ export default function App() {
         throw new Error(data.detail || "Unable to load validation samples.");
       }
 
-      setSamples(data.samples || []);
+      setSamples(
+  (data.samples || []).map((sample) => ({
+    ...sample,
+    actual_label:
+      sample.actual_label ||
+      sample.label ||
+      sample.attack_type ||
+      "Unknown",
+  }))
+);
       setError("");
     } catch (err) {
       setError(err.message || "Unable to load validation samples.");
@@ -309,6 +349,73 @@ export default function App() {
     }
   }
 
+  
+async function runAttackSimulation() {
+  if (!attackSimulationSampleId) {
+    setAttackSimulationError("Please select a dataset sample.");
+    return;
+  }
+
+  const eventCount = Number(attackEventCount);
+
+  if (
+    !Number.isInteger(eventCount) ||
+    eventCount < 1 ||
+    eventCount > 1000
+  ) {
+    setAttackSimulationError(
+      "Enter a whole number of simulated events between 1 and 1,000."
+    );
+    return;
+  }
+
+  const chosenSample = samples.find(
+    (sample) =>
+      String(sample.id) === String(attackSimulationSampleId)
+  );
+
+  if (!chosenSample) {
+    setAttackSimulationError("Please select a valid dataset sample.");
+    return;
+  }
+
+  setAttackSimulationBusy(true);
+  setAttackSimulationError("");
+  setAttackSimulationResult(null);
+
+  try {
+    const response = await fetch(
+      `${API}/api/attack-simulation/run`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sample_id: Number(attackSimulationSampleId),
+          event_count: eventCount,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.detail || "Attack simulation failed."
+      );
+    }
+
+    setAttackSimulationResult(data);
+    await loadAudit();
+  } catch (err) {
+    setAttackSimulationError(
+      err.message || "Unable to run attack simulation."
+    );
+  } finally {
+    setAttackSimulationBusy(false);
+  }
+}
+
+
   const analysis = result?.analysis || {};
   const detection = analysis.detection || {};
   const investigation = analysis.investigation || {};
@@ -317,16 +424,22 @@ export default function App() {
   const safety = result?.safety || {};
   const verification = result?.verification || {};
 
-  const auditCount = audit.length;
-  const simulatedAuditCount = audit.filter(isSimulationRecord).length;
-  const workflowAuditCount = auditCount - simulatedAuditCount;
+ const auditCount = audit.length;
+
+const simulatedAuditCount = audit.filter(
+  (record) => record.audit_source === "simulation"
+).length;
+
+const workflowAuditCount = audit.filter(
+  (record) => record.audit_source === "workflow"
+).length;
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
-            A<span>◆</span>
+            A<span>?</span>
           </div>
 
           <div>
@@ -344,7 +457,7 @@ export default function App() {
               className={`nav-item ${page === item.id ? "active" : ""}`}
               onClick={() => setPage(item.id)}
             >
-              <span className="nav-icon">{item.icon}</span>
+              {item.icon && <span className="nav-icon">{item.icon}</span>}
               {item.label}
 
               {item.id === "audit" && (
@@ -365,944 +478,1216 @@ export default function App() {
           </div>
 
           <div className="safe-note">
-            <span>◈</span>
+            <span>?</span>
 
             <div>
               <strong>Safe mode enabled</strong>
               <small>Response actions disabled</small>
             </div>
           </div>
-
-          <div className="sidebar-version">
-            AGENTIC DEFENSE · MINI PROJECT
-          </div>
         </div>
       </aside>
-
-      <main className="main-content">
+            <main className="main-content">
         <header className="topbar">
-          <div className="breadcrumbs">
-            Security Operations <span>/</span>{" "}
-            {NAV.find((item) => item.id === page)?.label}
+          <div>
+            <div className="breadcrumb">Security Operations / {NAV.find((item) => item.id === page)?.label || "Overview"}</div>
+            <h1>
+              {NAV.find((item) => item.id === page)?.label || "Overview"}
+            </h1>
           </div>
 
-          <div className="topbar-right">
-            <span className="live-pill">
+          <div className="topbar-actions">
+            <span className={`api-pill ${health ? "success" : "danger"}`}>
               <span className="status-dot" />
-              LOCAL ENVIRONMENT
+              {health ? "System Online" : "System Offline"}
             </span>
 
-            <div className="avatar">SOC</div>
+            <button className="secondary-button" onClick={() => {
+              loadHealth();
+              loadAudit();
+              loadSamples();
+            }}>
+              Refresh status
+            </button>
           </div>
         </header>
 
-        <div className="page-content">
-          {/* OVERVIEW */}
-          {page === "overview" && (
-            <>
-              <div className="page-heading">
+        {error && (
+          <div className="alert alert-error" role="alert">
+            {error}
+            <button onClick={() => setError("")} aria-label="Dismiss error">×</button>
+          </div>
+        )}
+
+        {page === "overview" && (
+  <div className="page-content">
+    <div className="page-heading">
+      <div>
+        <div className="eyebrow">SECURITY OPERATIONS / OVERVIEW</div>
+        <h1>Security Overview</h1>
+        <p>
+          Monitor threat detection, investigation workflows, and
+          simulated defense activity.
+        </p>
+      </div>
+
+      <button
+        className="secondary-button"
+        onClick={() => {
+          loadHealth();
+          loadAudit();
+          loadSamples();
+        }}
+      >
+        Refresh status
+      </button>
+    </div>
+
+    <section className="welcome-banner">
+      <div className="welcome-copy">
+        <div className="eyebrow cyan">
+          AUTONOMOUS CYBER DEFENSE
+        </div>
+
+        <h2>Detect. Investigate. Verify.</h2>
+
+        <p>
+          Analyze network-flow evidence, investigate suspicious
+          activity, review recommended responses, and verify
+          security decisions through a controlled workflow.
+          Real mitigation actions remain disabled.
+        </p>
+
+        <div className="hero-actions">
+          <button
+            className="primary-button"
+            onClick={() => setPage("investigation")}
+          >
+            Start investigation
+            <span>→</span>
+          </button>
+
+          <button
+            className="secondary-button"
+            onClick={() => setPage("attack-simulation")}
+          >
+            Open attack simulation
+          </button>
+        </div>
+      </div>
+
+      <div className="radar" aria-label="Decorative security radar">
+        <div className="radar-ring" />
+        <div className="radar-ring ring-two" />
+        <div className="radar-ring ring-three" />
+        <div className="radar-cross cross-x" />
+        <div className="radar-cross cross-y" />
+        <div className="radar-sweep" />
+        <div className="radar-center" />
+      </div>
+    </section>
+
+    <div className="section-title">
+      <h2>System status</h2>
+      <span className="muted">Live backend data</span>
+    </div>
+
+    <div className="metric-grid">
+      <div className="metric-card">
+        <div className="metric-top">
+          API STATUS
+          <span className="metric-icon cyan-icon">⌁</span>
+        </div>
+
+        <div className="metric-value">
+          {health ? "Online" : "Offline"}
+        </div>
+
+        <div className="metric-foot">
+          Backend health endpoint
+        </div>
+      </div>
+
+      <div className="metric-card">
+        <div className="metric-top">
+          AUDIT RECORDS
+          <span className="metric-icon purple-icon">▤</span>
+        </div>
+
+        <div className="metric-value">{auditCount}</div>
+
+        <div className="metric-foot">
+          Records returned by the audit API
+        </div>
+      </div>
+
+      <div className="metric-card">
+        <div className="metric-top">
+          MODEL WORKFLOW
+          <span className="metric-icon cyan-icon">◎</span>
+        </div>
+
+        <div className="metric-value small-value">
+          {result ? "Completed" : "Ready"}
+        </div>
+
+        <div className="metric-foot">
+          {result
+            ? "Latest analysis result available"
+            : "Run an investigation to begin"}
+        </div>
+      </div>
+
+      <div className="metric-card">
+        <div className="metric-top">
+          RESPONSE ACTIONS
+          <span className="metric-icon amber-icon">⌑</span>
+        </div>
+
+        <div className="metric-value small-value">
+          Disabled
+        </div>
+
+        <div className="metric-foot">
+          Simulation-only response policy
+        </div>
+      </div>
+    </div>
+
+    <div className="content-grid">
+      <section className="panel">
+        <div className="section-title">
+          <h2>Defense workflow</h2>
+          <span className="muted">05 stages</span>
+        </div>
+
+        <div className="pipeline">
+          {[
+            ["01", "Telemetry collection", "→"],
+            ["02", "Threat detection", "→"],
+            ["03", "Investigation and context", "→"],
+            ["04", "Response planning", "→"],
+            ["05", "Verification and audit", "✓"],
+          ].map(([number, title, marker]) => (
+            <div className="pipeline-step" key={number}>
+              <span className="pipeline-number">{number}</span>
+              <span>{title}</span>
+              <span className="pipeline-arrow">{marker}</span>
+            </div>
+          ))}
+        </div>
+
+        <button
+          className="text-button"
+          onClick={() => setPage("workflow")}
+        >
+          View workflow details →
+        </button>
+      </section>
+
+      <section className="panel">
+        <div className="section-title">
+          <h2>Recent audit activity</h2>
+          <span className="muted">
+            {auditCount} records
+          </span>
+        </div>
+
+        {auditError ? (
+          <p className="empty-state">{auditError}</p>
+        ) : audit.length === 0 ? (
+          <p className="empty-state">
+            No audit records are available yet. Run an analysis
+            or simulation to check whether the backend records
+            the event.
+          </p>
+        ) : (
+          <div className="recent-list">
+            {audit.slice(0, 5).map((record, index) => (
+              <div
+                className="recent-item"
+                key={record.id || index}
+              >
+                <span className="activity-dot" />
+
                 <div>
-                  <div className="eyebrow">DEFENSE COMMAND CENTER</div>
-                  <h1>Security Overview</h1>
+                  <strong>{getRecordAttack(record)}</strong>
+                  <small>
+                    {formatTimestamp(
+                      getRecordTimestamp(record)
+                    )}
+                  </small>
+                </div>
+
+                <span className="activity-status">
+                  {getRecordDecision(record)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          className="text-button"
+          onClick={() => setPage("audit")}
+        >
+          View all audit records →
+        </button>
+      </section>
+    </div>
+
+    <div className="notice">
+      <span>ⓘ</span>
+      <p>
+        <strong>Safety and data integrity:</strong> dashboard
+        recommendations and simulation counters do not establish
+        that a real attack occurred or that a real mitigation
+        action was executed.
+      </p>
+    </div>
+  </div>
+)}
+
+        {page === "investigation" && (
+          <div className="page-content">
+            <section className="page-intro">
+              <span className="eyebrow">NETWORK FLOW ANALYSIS</span>
+              <h2>Threat Investigation</h2>
+              <p>
+                Submit a numeric feature object to the existing backend
+                detector. The detector and its configured thresholds remain
+                unchanged.
+              </p>
+            </section>
+
+            <div className="two-column">
+              <ResultCard title="Analyze network flow">
+                <form onSubmit={analyze}>
+                  <label className="field-label" htmlFor="sample-select">
+                    Validation sample
+                  </label>
+
+                  <select
+                    id="sample-select"
+                    value={selectedSampleId}
+                    onChange={(event) => {
+                      const id = event.target.value;
+                      setSelectedSampleId(id);
+
+                      const sample = samples.find(
+                        (item) => String(item.id) === id
+                      );
+
+                      if (sample?.features) {
+                        setFeaturesText(
+                          JSON.stringify(sample.features, null, 2)
+                        );
+                      }
+                    }}
+                  >
+                    <option value="">
+                      {samplesLoading ? "Loading samples..." : "Select a sample"}
+                    </option>
+
+                    {samples.map((sample) => (
+  <option key={sample.id} value={sample.id}>
+    {sample.id} — {getAttackName(sample)}
+  </option>
+))}
+                  </select>
+
+                  <label className="field-label" htmlFor="features-json">
+                    Feature JSON
+                  </label>
+
+                  <textarea
+                    id="features-json"
+                    value={featuresText}
+                    onChange={(event) => setFeaturesText(event.target.value)}
+                    placeholder={'{\n  "Destination Port": 443,\n  "Flow Duration": 1000\n}'}
+                    rows={12}
+                    spellCheck={false}
+                    required
+                  />
+
+                  <button
+                    type="submit"
+                    className="primary-button full-width"
+                    disabled={busy}
+                  >
+                    {busy ? "Analyzing..." : "Run threat analysis"}
+                  </button>
+                </form>
+              </ResultCard>
+
+              <ResultCard title="Analysis guidance">
+                <div className="guidance-list">
+                  <div>
+                    <span className="guidance-number">1</span>
+                    <div>
+                      <strong>Use the correct features</strong>
+                      <p>
+                        Submit numeric features that match the model's expected
+                        feature names and order.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="guidance-number">2</span>
+                    <div>
+                      <strong>Review the prediction</strong>
+                      <p>
+                        A predicted category is a model output, not proof that
+                        malicious activity occurred.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="guidance-number">3</span>
+                    <div>
+                      <strong>Verify before responding</strong>
+                      <p>
+                        Recommendations and simulation outcomes do not modify
+                        network devices or block real traffic.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedSample && (
+                  <div className="sample-summary">
+                    <strong>Selected sample</strong>
+                    <span>ID: {selectedSample.id}</span>
+                    <span>
+  Label: {getAttackName(selectedSample)}
+</span>
+                  </div>
+                )}
+              </ResultCard>
+            </div>
+
+            {result && (
+              <ResultCard title="Threat analysis result">
+                <div className="metric-grid">
+                  <div className="metric-card">
+                    <span className="metric-label">PREDICTION</span>
+                    <strong>
+                      {detection.predicted_attack ||
+                        detection.prediction ||
+                        analysis.predicted_attack ||
+                        "—"}
+                    </strong>
+                  </div>
+
+                  <div className="metric-card">
+                    <span className="metric-label">CONFIDENCE</span>
+                    <strong>
+                      {typeof detection.confidence === "number"
+                        ? `${(detection.confidence * 100).toFixed(2)}%`
+                        : "—"}
+                    </strong>
+                  </div>
+
+                  <div className="metric-card">
+                    <span className="metric-label">DECISION</span>
+                    <strong>{plan.decision || "—"}</strong>
+                  </div>
+
+                  <div className="metric-card">
+                    <span className="metric-label">VERIFICATION</span>
+                    <strong>
+                      {verification.verified === true
+                        ? "Verified"
+                        : verification.verified === false
+                          ? "Not verified"
+                          : "—"}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="detail-list">
+                  <div className="detail-row">
+                    <span>Priority</span>
+                    <strong>{pretty(plan.priority)}</strong>
+                  </div>
+
+                  <div className="detail-row">
+                    <span>Investigation</span>
+                    <strong>{pretty(investigation)}</strong>
+                  </div>
+
+                  <div className="detail-row">
+                    <span>Threat knowledge</span>
+                    <strong>{pretty(knowledge)}</strong>
+                  </div>
+
+                  <div className="detail-row">
+                    <span>Safety status</span>
+                    <strong>{pretty(safety)}</strong>
+                  </div>
+                </div>
+
+                <div className="notice notice-info">
+                  <strong>Safe execution policy</strong>
                   <p>
-                    Monitor your autonomous threat investigation workflow.
+                    This analysis displays a prediction and recommendation.
+                    It does not authorize a real response action.
                   </p>
                 </div>
 
                 <button
                   className="secondary-button"
-                  onClick={() => {
-                    loadHealth();
-                    loadAudit();
-                  }}
+                  onClick={() => setPage("workflow")}
                 >
-                  ↻ Refresh status
+                  View workflow details
                 </button>
-              </div>
-
-              <div className="welcome-banner">
-                <div className="welcome-copy">
-                  <div className="eyebrow cyan">AGENTIC CYBER DEFENSE</div>
-
-                  <h2>Detect. Investigate. Verify.</h2>
-
-                  <p>
-                    Transformer-based network threat detection connected to
-                    agent orchestration and MCP threat intelligence.
-                  </p>
-
-                  <button
-                    className="primary-button"
-                    onClick={() => setPage("investigation")}
-                  >
-                    Start investigation <span>→</span>
-                  </button>
-                </div>
-
-                <div className="radar">
-                  <div className="radar-ring ring-one" />
-                  <div className="radar-ring ring-two" />
-                  <div className="radar-ring ring-three" />
-                  <div className="radar-cross cross-x" />
-                  <div className="radar-cross cross-y" />
-                  <div className="radar-sweep" />
-                  <span className="radar-center" />
-                </div>
-              </div>
-
-              <div className="section-title">
-                <h2>System status</h2>
-                <span className="muted">
-                  Live API and persisted audit data
-                </span>
-              </div>
-
-              <div className="metric-grid">
-                <div className="metric-card">
-                  <div className="metric-top">
-                    <span>API STATUS</span>
-                    <span className="metric-icon cyan-icon">⌁</span>
-                  </div>
-
-                  <div
-                    className={`metric-value ${
-                      health ? "success-text" : "danger-text"
-                    }`}
-                  >
-                    {health ? "Online" : "Offline"}
-                  </div>
-
-                  <div className="metric-foot">
-                    {health
-                      ? "FastAPI is responding"
-                      : "Start the backend server"}
-                  </div>
-                </div>
-
-                <div className="metric-card">
-                  <div className="metric-top">
-                    <span>AUDIT RECORDS</span>
-                    <span className="metric-icon purple-icon">▤</span>
-                  </div>
-
-                  <div className="metric-value">{auditCount}</div>
-                  <div className="metric-foot">
-                    {workflowAuditCount} workflow · {simulatedAuditCount} simulated
-                  </div>
-                </div>
-
-                <div className="metric-card">
-                  <div className="metric-top">
-                    <span>MODEL WORKFLOW</span>
-                    <span className="metric-icon cyan-icon">⌘</span>
-                  </div>
-
-                  <div className="metric-value small-value">
-                    {health?.model_workflow ? "Configured" : "Unknown"}
-                  </div>
-
-                  <div className="metric-foot">Existing Python workflow</div>
-                </div>
-
-                <div className="metric-card">
-                  <div className="metric-top">
-                    <span>RESPONSE ACTIONS</span>
-                    <span className="metric-icon amber-icon">⛨</span>
-                  </div>
-
-                  <div className="metric-value success-text">Disabled</div>
-
-                  <div className="metric-foot">
-                    Read-only demonstration mode
-                  </div>
-                </div>
-              </div>
-
-              <div className="content-grid">
-                <ResultCard title="Defense workflow">
-                  <div className="pipeline">
-                    {[
-                      "Network flow",
-                      "Transformer detector",
-                      "Threat investigation",
-                      "MCP knowledge",
-                      "Planner & safety",
-                      "Verification & audit",
-                    ].map((step, i) => (
-                      <div className="pipeline-step" key={step}>
-                        <span className="pipeline-number">
-                          {String(i + 1).padStart(2, "0")}
-                        </span>
-
-                        <span>{step}</span>
-
-                        {i < 5 && <span className="pipeline-arrow">→</span>}
-                      </div>
-                    ))}
-                  </div>
-                </ResultCard>
-
-                <ResultCard title="Recent audit activity">
-                  {audit.length ? (
-                    <div className="recent-list">
-                      {audit.slice(0, 4).map((record, i) => (
-                        <div
-                          className="recent-item"
-                          key={`${getRecordTimestamp(record)}-${i}`}
-                        >
-                          <span className="activity-dot" />
-
-                          <div>
-                            <strong>
-                              {getRecordAttack(record)}
-                              {isSimulationRecord(record) &&
-                                " · SIMULATED"}
-                            </strong>
-
-                            <small>
-                              {formatTimestamp(getRecordTimestamp(record))}
-                            </small>
-                          </div>
-
-                          <span className="activity-status">LOGGED</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="empty-state">
-                      {auditError || "No audit records returned yet."}
-                    </p>
-                  )}
-
-                  <button
-                    className="text-button"
-                    onClick={() => setPage("audit")}
-                  >
-                    View audit records →
-                  </button>
-                </ResultCard>
-              </div>
-
-              <div className="notice">
-                <span>ⓘ</span>
-                <p>
-                  <strong>Demo data integrity:</strong> Dashboard metrics show
-                  API status and records actually returned by the backend.
-                  Detection performance statistics will be added from measured
-                  evaluation results, not invented values.
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* THREAT INVESTIGATION */}
-          {page === "investigation" && (
-            <>
-              <div className="page-heading">
-                <div>
-                  <div className="eyebrow">DETECTION CONSOLE</div>
-                  <h1>Threat Investigation</h1>
-                  <p>
-                    Submit one network flow to the existing 58-feature
-                    Transformer workflow.
-                  </p>
-                </div>
-
-                <span className="read-only-badge">READ-ONLY MODE</span>
-              </div>
-
-              <div className="notice">
-                <span>ⓘ</span>
-                <p>
-                  Input must be a JSON object containing all required numeric
-                  model features in the checkpoint&apos;s expected schema. Do
-                  not include the target label <code>Attack_Type</code>. This
-                  form does not retrain or modify the model.
-                </p>
-              </div>
-
-              <ResultCard title="Network flow input">
-                <form onSubmit={analyze}>
-                  <label className="field-label" htmlFor="sample-select">
-                    VALIDATION DATASET SAMPLE
-                  </label>
-
-                  <select
-                    id="sample-select"
-                    className="sample-select"
-                    value={selectedSampleId}
-                    onChange={(event) => {
-                      const sample = samples.find(
-                        (item) => String(item.id) === event.target.value
-                      );
-
-                      setSelectedSampleId(event.target.value);
-
-                      if (sample) {
-                        setFeaturesText(
-                          JSON.stringify(sample.features, null, 2)
-                        );
-                        setResult(null);
-                        setError("");
-                        setSimulationError("");
-                      }
-                    }}
-                    disabled={samplesLoading || samples.length === 0}
-                  >
-                    <option value="">
-                      {samplesLoading
-                        ? "Loading samples..."
-                        : "Choose a validation sample"}
-                    </option>
-
-                    {samples.map((sample) => (
-                      <option key={sample.id} value={String(sample.id)}>
-                        Sample {sample.id} — {sample.actual_label}
-                      </option>
-                    ))}
-                  </select>
-
-                  <p className="muted sample-help">
-                    Choose a real validation row to populate its 58 model
-                    features.
-                  </p>
-
-                  {selectedSample && (
-                    <div className="sample-label">
-                      <span>ACTUAL DATASET LABEL</span>
-                      <strong>{pretty(selectedSample.actual_label)}</strong>
-                      <small>
-                        This is the validation label, not the model prediction.
-                      </small>
-                    </div>
-                  )}
-
-                  <label className="field-label" htmlFor="flow-json">
-                    FEATURE JSON
-                  </label>
-
-                  <textarea
-                    id="flow-json"
-                    className="json-input"
-                    value={featuresText}
-                    onChange={(event) => setFeaturesText(event.target.value)}
-                    placeholder={`Paste a single flow as JSON, for example:
-{
-  "feature_name": 0.0
-}`}
-                    spellCheck="false"
-                    required
-                  />
-
-                  <div className="form-bottom">
-                    <span className="muted">
-                      Numeric feature values only · JSON format
-                    </span>
-
-                    <button className="primary-button" disabled={busy}>
-                      {busy ? "Analyzing…" : "Run threat analysis →"}
-                    </button>
-                  </div>
-                </form>
-
-                {error && <div className="error-banner">{error}</div>}
               </ResultCard>
+            )}
+          </div>
+        )}
+                {page === "workflow" && (
+          <div className="page-content">
+            <section className="page-intro">
+              <span className="eyebrow">DECISION TRACE</span>
+              <h2>Agent Workflow</h2>
+              <p>
+                Review the analysis, investigation, decision, safety checks,
+                and verification results from the most recent run.
+              </p>
+            </section>
 
-              <ResultCard title="Analysis output">
-                {result ? (
-                  <div className="result-summary">
-                    <div className="result-chip">
-                      <small>PREDICTED CLASS</small>
-                      <strong>{pretty(detection.predicted_attack)}</strong>
+            {!result ? (
+              <ResultCard title="No workflow result">
+                <p className="muted">
+                  Run a threat analysis first to view the workflow details.
+                </p>
+                <button
+                  className="primary-button"
+                  onClick={() => setPage("investigation")}
+                >
+                  Analyze a network flow
+                </button>
+              </ResultCard>
+            ) : (
+              <>
+                <div className="timeline">
+                  {[
+                    {
+                      title: "Threat detection",
+                      description: "The detector analyzed the submitted features.",
+                      value: detection.predicted_attack || detection.prediction || "Prediction recorded",
+                    },
+                    {
+                      title: "Investigation",
+                      description: "Investigation evidence and context were processed.",
+                      value: investigation.status || "Review the investigation output",
+                    },
+                    {
+                      title: "Decision planning",
+                      description: "The workflow produced a response recommendation.",
+                      value: plan.decision || "No decision recorded",
+                    },
+                    {
+                      title: "Safety enforcement",
+                      description: "The response policy restricts execution to safe options.",
+                      value: safety.action_permitted === false
+                        ? "Real action not permitted"
+                        : "Review policy details",
+                    },
+                    {
+                      title: "Verification",
+                      description: "The workflow verification output is shown below.",
+                      value: verification.verified === true
+                        ? "Verified"
+                        : verification.verified === false
+                          ? "Verification failed"
+                          : "Status unavailable",
+                    },
+                  ].map((step, index) => (
+                    <div className="timeline-item" key={step.title}>
+                      <div className="timeline-marker">{index + 1}</div>
+                      <div className="timeline-content">
+                        <h3>{step.title}</h3>
+                        <p>{step.description}</p>
+                        <strong>{pretty(step.value)}</strong>
+                      </div>
                     </div>
+                  ))}
+                </div>
 
-                    <div className="result-chip">
-                      <small>MODEL CONFIDENCE</small>
-                      <strong>
-                        {typeof detection.confidence === "number"
-                          ? `${(detection.confidence * 100).toFixed(2)}%`
-                          : "—"}
-                      </strong>
+                <div className="two-column">
+                  <ResultCard title="Decision details">
+                    <div className="detail-list">
+                      {Object.entries(plan).length ? (
+                        Object.entries(plan).map(([key, value]) => (
+                          <div className="detail-row" key={key}>
+                            <span>{key.replaceAll("_", " ")}</span>
+                            <strong>{pretty(value)}</strong>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="muted">No decision details returned.</p>
+                      )}
+                    </div>
+                  </ResultCard>
+
+                  <ResultCard title="Verification details">
+                    <pre className="json-output">
+                      {JSON.stringify(verification, null, 2)}
+                    </pre>
+                  </ResultCard>
+                </div>
+
+                <ResultCard title="Complete analysis output">
+                  <pre className="json-output">
+                    {JSON.stringify(result, null, 2)}
+                  </pre>
+                </ResultCard>
+
+                <button
+                  className="secondary-button"
+                  onClick={() => setPage("investigation")}
+                >
+                  Analyze another flow
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {page === "active-defense" && (
+          <div className="page-content">
+            <section className="page-intro">
+              <span className="eyebrow">POLICY-RESTRICTED RESPONSE</span>
+              <h2>Active Defense</h2>
+              <p>
+                Review safe response recommendations and record simulated
+                outcomes. No firewall, endpoint, account, or network settings
+                are changed by this dashboard.
+              </p>
+            </section>
+
+            <div className="notice notice-warning">
+              <strong>Real response actions are disabled</strong>
+              <p>
+                The controls below record a simulated response only. They
+                do not block traffic, disable accounts, or apply live security
+                rules.
+              </p>
+            </div>
+
+            <div className="metric-grid">
+              <div className="metric-card">
+                <span className="metric-label">POLICY MODE</span>
+                <strong>Safe mode</strong>
+                <small>Restricted response decisions</small>
+              </div>
+
+              <div className="metric-card">
+                <span className="metric-label">EXECUTION</span>
+                <strong>Disabled</strong>
+                <small>No real mitigation</small>
+              </div>
+
+              <div className="metric-card">
+                <span className="metric-label">AUDIT TRAIL</span>
+                <strong>Enabled</strong>
+                <small>Simulated events may be recorded</small>
+              </div>
+            </div>
+
+            <ResultCard title="Recommended response options">
+              <div className="response-options">
+                {[
+                  {
+                    attack: "DDoS",
+                    title: "Simulated rate limiting",
+                    description: "Illustrates reducing the allowed event rate.",
+                  },
+                  {
+                    attack: "DoS",
+                    title: "Simulated traffic filtering",
+                    description: "Illustrates filtering suspicious events.",
+                  },
+                  {
+                    attack: "BRUTE_FORCE",
+                    title: "Simulated login guard",
+                    description: "Illustrates a login-protection response.",
+                  },
+                  {
+                    attack: "PORT_SCAN",
+                    title: "Simulated source restriction",
+                    description: "Illustrates a source-blocking recommendation.",
+                  },
+                  {
+                    attack: "BOT",
+                    title: "Simulated traffic filtering",
+                    description: "Illustrates a bot-traffic response.",
+                  },
+                  {
+                    attack: "WEB_ATTACK",
+                    title: "Manual review",
+                    description: "Requests analyst review instead of automatic mitigation.",
+                  },
+                  {
+                    attack: "BENIGN",
+                    title: "Monitor only",
+                    description: "Records a monitoring recommendation.",
+                  },
+                ].map((option) => (
+                  <div className="response-option" key={option.attack}>
+                    <div>
+                      <span className="option-tag">{option.attack}</span>
+                      <h3>{option.title}</h3>
+                      <p>{option.description}</p>
                     </div>
 
                     <button
                       className="secondary-button"
-                      onClick={() => setPage("workflow")}
+                      disabled={simulationBusy}
+                      onClick={() =>
+                        simulateResponse(option.attack, option)
+                      }
                     >
-                      View workflow details →
+                      {simulationBusy ? "Recording..." : "Simulate response"}
                     </button>
-                  </div>
-                ) : (
-                  <p className="empty-state">
-                    Submit a valid feature object to see the actual prediction
-                    and downstream workflow results.
-                  </p>
-                )}
-              </ResultCard>
-            </>
-          )}
-
-          {/* AGENT WORKFLOW */}
-          {page === "workflow" && (
-            <>
-              <div className="page-heading">
-                <div>
-                  <div className="eyebrow">AGENT ORCHESTRATION</div>
-                  <h1>Agent Workflow</h1>
-                  <p>
-                    Trace the decisions returned by your existing Python
-                    workflow.
-                  </p>
-                </div>
-
-                <span className="read-only-badge">ACTIONS DISABLED</span>
-              </div>
-
-              <div className="workflow-timeline">
-                {[
-                  ["01", "Transformer Detection", "detection", detection],
-                  [
-                    "02",
-                    "Threat Investigation",
-                    "investigation",
-                    investigation,
-                  ],
-                  ["03", "MCP Knowledge Lookup", "mcp_knowledge", knowledge],
-                  ["04", "Decision Planner", "plan", plan],
-                  ["05", "Safety Policy", "safety", safety],
-                  ["06", "Verification", "verification", verification],
-                ].map(([number, title, key, data], i) => (
-                  <div className="timeline-row" key={key}>
-                    <div className="timeline-marker">{number}</div>
-
-                    <div className="timeline-body">
-                      <div className="timeline-heading">
-                        <h3>{title}</h3>
-
-                        <span
-                          className={`stage-badge ${
-                            result ? "stage-done" : "stage-idle"
-                          }`}
-                        >
-                          {result ? "RESULT AVAILABLE" : "AWAITING ANALYSIS"}
-                        </span>
-                      </div>
-
-                      <pre>
-                        {result
-                          ? pretty(data)
-                          : "Run an investigation to populate this stage with real workflow output."}
-                      </pre>
-                    </div>
-
-                    {i < 5 && <div className="timeline-connector" />}
                   </div>
                 ))}
               </div>
+            </ResultCard>
 
-              {result && (
-                <div className="notice">
-                  <span>⛨</span>
-                  <p>
-                    <strong>Action safety:</strong> Workflow reports{" "}
-                    <code>
-                      action_taken: {String(result.action_taken ?? false)}
-                    </code>
-                    . The dashboard does not perform blocking, isolation, or
-                    other network modifications.
-                  </p>
-                </div>
+            {simulationError && (
+              <div className="alert alert-error" role="alert">
+                {simulationError}
+              </div>
+            )}
+
+            {result?.simulated_response && (
+              <ResultCard title="Latest simulated response">
+                <pre className="json-output">
+                  {JSON.stringify(result.simulated_response, null, 2)}
+                </pre>
+              </ResultCard>
+            )}
+          </div>
+        )}
+
+        
+{page === "attack-simulation" && (
+  <div className="page-content">
+    <section className="page-intro">
+      <span className="eyebrow">CONTROLLED SIMULATION</span>
+      <h2>Attack Simulation</h2>
+      <p>
+        Select a labeled dataset sample and run the simulation
+        to visualize detection, investigation, simulated response,
+        and verification.
+      </p>
+    </section>
+
+    <div className="notice notice-info">
+      <strong>Dataset-based simulation only</strong>
+      <p>
+        This animation is illustrative. It does not send network
+        packets, execute an attack, block real traffic, or change
+        network settings.
+      </p>
+    </div>
+
+    <ResultCard title="Simulation configuration">
+      <div className="attack-sim-controls">
+        <div className="attack-sim-field">
+  <label htmlFor="attack-sample">
+    Dataset sample
+  </label>
+          <select
+            id="attack-sample"
+            value={attackSimulationSampleId}
+            onChange={(event) => {
+              setAttackSimulationSampleId(event.target.value);
+              setAttackSimulationResult(null);
+              setAttackSimulationError("");
+            }}
+          >
+            <option value="">
+              {samplesLoading ? "Loading samples..." : "Select a sample"}
+            </option>
+
+            {samples.map((sample) => (
+              <option key={sample.id} value={sample.id}>
+                {sample.id} — {getAttackName(sample)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="field-label" htmlFor="attack-count">
+            Number of simulated events
+          </label>
+
+          <input
+            id="attack-count"
+            type="number"
+            min="1"
+            max="1000"
+            step="1"
+            value={attackEventCount}
+            onChange={(event) =>
+              setAttackEventCount(event.target.value)
+            }
+          />
+        </div>
+      </div>
+
+      <button
+        className="primary-button"
+        disabled={
+          attackSimulationBusy ||
+          !attackSimulationSampleId ||
+          !attackEventCount ||
+          !Number.isInteger(Number(attackEventCount)) ||
+          Number(attackEventCount) < 1 ||
+          Number(attackEventCount) > 1000
+        }
+        onClick={runAttackSimulation}
+      >
+        {attackSimulationBusy
+          ? "Running simulation..."
+          : "Run attack simulation"}
+      </button>
+
+      {attackSimulationError && (
+        <div className="alert alert-error" role="alert">
+          {attackSimulationError}
+        </div>
+      )}
+    </ResultCard>
+
+    {attackSimulationResult && (
+      <>
+        <AttackReplay
+  result={attackSimulationResult}
+  eventCount={Number(attackEventCount)}
+/>
+
+        <div className="metric-grid">
+          <div className="metric-card">
+            <span className="metric-label">ACTUAL LABEL</span>
+            <strong>
+              {pretty(
+                attackSimulationResult.simulation?.actual_dataset_label ??
+                attackSimulationResult.actual
               )}
-            </>
-          )}
+            </strong>
+          </div>
 
-          {/* ACTIVE DEFENSE */}
-          {page === "active-defense" && (
-            <>
-              <div className="page-heading">
-                <div>
-                  <div className="eyebrow">SIMULATED INCIDENT RESPONSE</div>
-                  <h1>Active Defense &amp; Response</h1>
-                  <p>
-                    Review proposed security responses and safely simulate
-                    their outcomes using your existing threat analysis
-                    workflow.
-                  </p>
-                </div>
+          <div className="metric-card">
+            <span className="metric-label">PREDICTED LABEL</span>
+            <strong>
+              {pretty(
+                attackSimulationResult.simulation?.predicted_label ??
+                attackSimulationResult.predicted
+              )}
+            </strong>
+          </div>
 
-                <span className="read-only-badge">SIMULATION MODE</span>
+          <div className="metric-card">
+            <span className="metric-label">DETECTION MATCH</span>
+            <strong>
+              {attackSimulationResult.simulation?.detection_match === true
+                ? "Match"
+                : attackSimulationResult.simulation?.detection_match === false
+                  ? "Mismatch"
+                  : "—"}
+            </strong>
+          </div>
+
+          <div className="metric-card">
+            <span className="metric-label">SIMULATION STATUS</span>
+            <strong>
+              {pretty(
+                attackSimulationResult.simulation?.simulation_status
+              )}
+            </strong>
+          </div>
+        </div>
+
+        {attackSimulationResult.simulation?.detection_match === false && (
+          <div className="notice notice-warning">
+            <strong>Detection mismatch</strong>
+            <p>
+              The predicted label differs from the dataset label.
+              The simulated response uses the reported prediction,
+              so this must not be presented as a correct detection.
+            </p>
+          </div>
+        )}
+
+        <ResultCard title="Simulation timeline">
+          <div className="timeline">
+            {[
+              [
+                "Sample selected",
+                `Sample ${attackSimulationSampleId} — ${
+                  attackSimulationResult.simulation?.actual_dataset_label ||
+                  "Unknown"
+                }`,
+              ],
+              [
+                "Prediction evaluated",
+                `${
+                  attackSimulationResult.simulation?.predicted_label ||
+                  "Unknown"
+                } — ${
+                  attackSimulationResult.simulation?.detection_match === true
+                    ? "Match"
+                    : attackSimulationResult.simulation?.detection_match === false
+                      ? "Mismatch"
+                      : "Awaiting result"
+                }`,
+              ],
+              [
+                "Response simulated",
+                `${
+                  attackSimulationResult.simulation?.response?.rule_name ||
+                  attackSimulationResult.simulation?.action ||
+                  "Pending"
+                }`,
+              ],
+              [
+                "Verification performed",
+                `${
+                  attackSimulationResult.simulation?.verification?.verified === true
+                    ? "Passed"
+                    : attackSimulationResult.simulation?.verification?.verified === false
+                      ? "Failed"
+                      : "Awaiting result"
+                } — no real action executed`,
+              ],
+            ].map(([title, description], index) => (
+              <div className="timeline-item" key={title}>
+                <div className="timeline-marker">{index + 1}</div>
+                <div className="timeline-content">
+  <h3>{title}</h3>
+  <p>{description}</p>
+</div>
               </div>
+            ))}
+          </div>
+        </ResultCard>
 
-              <div className="notice">
-                <span>ⓘ</span>
-                <p>
-                  <strong>Safe simulation only:</strong> This prototype does
-                  not block traffic, isolate devices, change firewall rules,
-                  or modify the network. A simulated result is not proof that
-                  a real attack has been stopped.
+        <ResultCard title="Simulated response details">
+          <div className="detail-list">
+            <div className="detail-row">
+              <span>Action</span>
+              <strong>
+                {pretty(attackSimulationResult.simulation?.action)}
+              </strong>
+            </div>
+
+            <div className="detail-row">
+              <span>Response rule</span>
+              <strong>
+                {pretty(
+                  attackSimulationResult.simulation?.response?.rule_name
+                )}
+              </strong>
+            </div>
+
+            <div className="detail-row">
+              <span>Outcome</span>
+              <strong>
+                {pretty(
+                  attackSimulationResult.simulation?.response?.outcome
+                )}
+              </strong>
+            </div>
+
+            <div className="detail-row">
+              <span>Simulation rule active</span>
+              <strong>
+                {pretty(
+                  attackSimulationResult.simulation?.response?.simulated_rule_active
+                )}
+              </strong>
+            </div>
+
+            <div className="detail-row">
+              <span>Real action executed</span>
+              <strong>
+                {attackSimulationResult.simulation?.real_action_executed === true
+                  ? "Yes"
+                  : "No"}
+              </strong>
+            </div>
+          </div>
+
+          {attackSimulationResult.simulation?.response?.description && (
+            <p className="muted">
+              {attackSimulationResult.simulation.response.description}
+            </p>
+          )}
+        </ResultCard>
+
+        <ResultCard title="Simulated event counts">
+          <div className="attack-sim-metrics">
+            {[
+              ["Total events", attackSimulationResult.simulation?.after?.events_total],
+              ["Allowed", attackSimulationResult.simulation?.after?.events_allowed],
+              ["Filtered", attackSimulationResult.simulation?.after?.events_filtered],
+              ["Rate limited", attackSimulationResult.simulation?.after?.events_rate_limited],
+              ["Login blocked", attackSimulationResult.simulation?.after?.events_login_blocked],
+              ["Source blocked", attackSimulationResult.simulation?.after?.events_source_blocked],
+              ["Manual review", attackSimulationResult.simulation?.after?.events_manual_review],
+            ].map(([label, value]) => (
+              <div className="attack-sim-metric" key={label}>
+                <span>{label}</span>
+                <strong>{pretty(value ?? 0)}</strong>
+              </div>
+            ))}
+          </div>
+        </ResultCard>
+
+        <div className="notice notice-info">
+          <strong>Simulation-only result</strong>
+          <p>
+            These counters represent simulator output, not confirmed
+            changes to real network traffic.
+          </p>
+        </div>
+
+        <ResultCard title="Verification results">
+          <div className="detail-list">
+            {Object.entries(
+              attackSimulationResult.simulation?.verification || {}
+            ).map(([key, value]) => (
+              <div className="detail-row" key={key}>
+                <span>{key.replaceAll("_", " ")}</span>
+                <strong>{pretty(value)}</strong>
+              </div>
+            ))}
+          </div>
+        </ResultCard>
+
+        <ResultCard title="Complete simulation output">
+          <pre className="json-output">
+            {JSON.stringify(attackSimulationResult, null, 2)}
+          </pre>
+        </ResultCard>
+
+        <button
+          className="secondary-button"
+          onClick={() => {
+            setAttackSimulationResult(null);
+            setAttackSimulationError("");
+          }}
+        >
+          Reset simulation result
+        </button>
+      </>
+    )}
+  </div>
+)}
+
+
+        {page === "intelligence" && (
+          <div className="page-content">
+            <section className="page-intro">
+              <span className="eyebrow">THREAT CONTEXT</span>
+              <h2>Threat Intelligence</h2>
+              <p>
+                Review threat knowledge returned by the latest investigation.
+                This page displays available results without inventing
+                intelligence that the backend did not return.
+              </p>
+            </section>
+
+            {!result ? (
+              <ResultCard title="No threat intelligence result">
+                <p className="muted">
+                  Run an investigation to view any threat knowledge returned
+                  by the existing workflow.
                 </p>
+
+                <button
+                  className="primary-button"
+                  onClick={() => setPage("investigation")}
+                >
+                  Go to Threat Investigation
+                </button>
+              </ResultCard>
+            ) : (
+              <>
+                <ResultCard title="Threat knowledge">
+                  <pre className="json-output">
+                    {JSON.stringify(knowledge, null, 2)}
+                  </pre>
+                </ResultCard>
+
+                <ResultCard title="Investigation evidence">
+                  <pre className="json-output">
+                    {JSON.stringify(investigation, null, 2)}
+                  </pre>
+                </ResultCard>
+              </>
+            )}
+          </div>
+        )}
+
+        {page === "audit" && (
+          <div className="page-content">
+            <section className="page-intro">
+              <span className="eyebrow">TRACEABILITY</span>
+              <h2>Audit Records</h2>
+              <p>
+                Review workflow and simulation records returned by the backend.
+                Simulation entries are not evidence of real mitigation.
+              </p>
+            </section>
+
+            <div className="metric-grid">
+              <div className="metric-card">
+                <span className="metric-label">TOTAL RECORDS</span>
+                <strong>{auditCount}</strong>
               </div>
 
-              <ResultCard title="Incident assessment">
-                {result ? (
-                  <div className="result-summary">
-                    <div className="result-chip">
-                      <small>DETECTED ATTACK</small>
-                      <strong>{pretty(detection.predicted_attack)}</strong>
-                    </div>
+              <div className="metric-card">
+                <span className="metric-label">WORKFLOW RECORDS</span>
+                <strong>{workflowAuditCount}</strong>
+              </div>
 
-                    <div className="result-chip">
-                      <small>MODEL CONFIDENCE</small>
-                      <strong>
-                        {typeof detection.confidence === "number"
-                          ? `${(detection.confidence * 100).toFixed(2)}%`
-                          : "—"}
-                      </strong>
-                    </div>
+              <div className="metric-card">
+                <span className="metric-label">SIMULATION RECORDS</span>
+                <strong>{simulatedAuditCount}</strong>
+              </div>
 
-                    <div className="result-chip">
-                      <small>PLANNER DECISION</small>
-                      <strong>{pretty(plan.decision)}</strong>
-                    </div>
+              <div className="metric-card">
+                <span className="metric-label">REAL ACTIONS</span>
+                <strong>Disabled</strong>
+              </div>
+            </div>
 
-                    <button
-                      className="secondary-button"
-                      onClick={() => setPage("investigation")}
-                    >
-                      Analyze another flow →
-                    </button>
-                  </div>
-                ) : (
-                  <div className="empty-state">
-                    <p>No analysis result is available yet.</p>
-                    <button
-                      className="primary-button"
-                      onClick={() => setPage("investigation")}
-                    >
-                      Go to Threat Investigation →
-                    </button>
-                  </div>
-                )}
-              </ResultCard>
+            {auditError && (
+              <div className="alert alert-error" role="alert">
+                {auditError}
+              </div>
+            )}
 
-              <ResultCard title="Proposed response">
-                {result ? (
-                  (() => {
-                    const attack = String(
-                      detection.predicted_attack || "UNKNOWN"
-                    ).toUpperCase();
-
-                    const responses = {
-                      DDOS: {
-                        title: "DDoS traffic investigation",
-                        description:
-                          "Review traffic volume, source distribution, and service availability. Simulate a rate-limiting recommendation.",
-                      },
-                      DOS: {
-                        title: "Denial-of-service investigation",
-                        description:
-                          "Review resource consumption and suspicious traffic patterns. Simulate a service-protection recommendation.",
-                      },
-                      PORT_SCAN: {
-                        title: "Port-scan investigation",
-                        description:
-                          "Review connection attempts and targeted ports. Simulate a recommendation to review firewall rules.",
-                      },
-                      BRUTE_FORCE: {
-                        title: "Brute-force investigation",
-                        description:
-                          "Review repeated authentication failures. Simulate an account-protection recommendation.",
-                      },
-                      WEB_ATTACK: {
-                        title: "Web-attack investigation",
-                        description:
-                          "Review suspicious HTTP requests and application logs. Simulate an application-protection recommendation.",
-                      },
-                      BOT: {
-                        title: "Bot-traffic investigation",
-                        description:
-                          "Review suspicious communication patterns and related events. Simulate a further-investigation recommendation.",
-                      },
-                      BENIGN: {
-                        title: "Continue monitoring",
-                        description:
-                          "The detector classified this flow as benign. Simulate recording the assessment and continuing monitoring, without containment.",
-                      },
-                    };
-
-                    const recommendation = responses[attack] || {
-                      title: "Manual security review",
-                      description:
-                        "The predicted class has no configured response template. Simulate recording the event for manual investigation.",
-                    };
-
-                    return (
-                      <div className="response-plan">
-                        <div className="response-plan-header">
-                          <span className="metric-icon amber-icon">⛨</span>
-
-                          <div>
-                            <h3>{recommendation.title}</h3>
-                            <p>{recommendation.description}</p>
-                          </div>
-                        </div>
-
-                        <div className="notice">
-                          <span>✓</span>
-                          <p>
-                            <strong>Safety check:</strong>{" "}
-                            {safety.action_permitted === false
-                              ? "The workflow does not permit real response execution."
-                              : "Real response execution remains disabled in this prototype."}
-                          </p>
-                        </div>
-
-                        <button
-                          className="primary-button"
-                          disabled={simulationBusy}
-                          onClick={() =>
-                            simulateResponse(attack, recommendation)
-                          }
-                        >
-                          {simulationBusy
-                            ? "Saving simulation…"
-                            : "▶ Simulate Response"}
-                        </button>
-
-                        {simulationError && (
-                          <div className="error-banner">
-                            {simulationError}
-                          </div>
-                        )}
-
-                        {result.simulated_response && (
-                          <div className="simulation-result">
-                            <div className="intel-status">
-                              <span className="status-dot online-dot" />
-                              <strong>Simulation record saved</strong>
-                            </div>
-
-                            <div className="result-summary">
-                              <div className="result-chip">
-                                <small>SIMULATION STATUS</small>
-                                <strong>
-                                  {pretty(
-                                    result.simulated_response.simulation_status ||
-                                      result.simulated_response.status ||
-                                      "SIMULATED"
-                                  )}
-                                </strong>
-                              </div>
-
-                              <div className="result-chip">
-                                <small>REAL ACTION EXECUTED</small>
-                                <strong>
-                                  {result.simulated_response.real_action_executed
-                                    ? "YES"
-                                    : "NO"}
-                                </strong>
-                              </div>
-                            </div>
-
-                            <p>{result.simulated_response.outcome}</p>
-
-                            <pre>{pretty(result.simulated_response)}</pre>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <p className="empty-state">
-                    Run an analysis first to generate a response recommendation.
-                  </p>
-                )}
-              </ResultCard>
-            </>
-          )}
-
-          {/* THREAT INTELLIGENCE */}
-          {page === "intelligence" && (
-            <>
-              <div className="page-heading">
+            <div className="table-panel">
+              <div className="table-heading">
                 <div>
-                  <div className="eyebrow">KNOWLEDGE ENRICHMENT</div>
-                  <h1>Threat Intelligence</h1>
-                  <p>
-                    MCP-retrieved threat context and ATT&amp;CK mappings from
-                    your existing integration.
-                  </p>
-                </div>
-              </div>
-
-              <ResultCard title="MCP threat knowledge">
-                {result ? (
-                  <>
-                    <div className="intel-status">
-                      <span
-                        className={`status-dot ${
-                          knowledge.status === "found" ? "online-dot" : ""
-                        }`}
-                      />
-
-                      <strong>
-                        {pretty(knowledge.status || "Status not provided")}
-                      </strong>
-                    </div>
-
-                    <pre>{pretty(knowledge)}</pre>
-                  </>
-                ) : (
-                  <p className="empty-state">
-                    Run a threat investigation to display the actual MCP lookup
-                    response.
-                  </p>
-                )}
-              </ResultCard>
-
-              <ResultCard title="Threat investigation findings">
-                {result ? (
-                  <pre>{pretty(investigation)}</pre>
-                ) : (
-                  <p className="empty-state">
-                    Investigation findings will appear here after analysis.
-                  </p>
-                )}
-              </ResultCard>
-
-              <div className="notice">
-                <span>ⓘ</span>
-                <p>
-                  ATT&amp;CK identifiers and threat descriptions are displayed
-                  only when returned by your knowledge retriever. An
-                  unavailable mapping is not treated as confirmed intelligence.
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* AUDIT RECORDS */}
-          {page === "audit" && (
-            <>
-              <div className="page-heading">
-                <div>
-                  <div className="eyebrow">TRACEABILITY &amp; REVIEW</div>
-                  <h1>Audit Records</h1>
-                  <p>
-                    Persisted workflow and simulated-response records returned
-                    by the audit API.
-                  </p>
+                  <h3>Security activity</h3>
+                  <p>Newest records appear first.</p>
                 </div>
 
                 <button
                   className="secondary-button"
                   onClick={loadAudit}
                 >
-                  ↻ Refresh records
+                  Refresh records
                 </button>
               </div>
 
-              <div className="metric-grid audit-metrics">
-                <div className="metric-card">
-                  <div className="metric-top">
-                    <span>RECORDS LOADED</span>
-                    <span className="metric-icon cyan-icon">▤</span>
-                  </div>
-
-                  <div className="metric-value">{auditCount}</div>
-
-                  <div className="metric-foot">
-                    {workflowAuditCount} workflow · {simulatedAuditCount} simulated
-                    responses
-                  </div>
-                </div>
-
-                <div className="metric-card">
-                  <div className="metric-top">
-                    <span>SIMULATED RESPONSES</span>
-                    <span className="metric-icon purple-icon">✓</span>
-                  </div>
-
-                  <div className="metric-value">{simulatedAuditCount}</div>
-
-                  <div className="metric-foot">
-                    No real mitigation performed
-                  </div>
-                </div>
-
-                <div className="metric-card">
-                  <div className="metric-top">
-                    <span>RESPONSE ACTIONS</span>
-                    <span className="metric-icon amber-icon">⛨</span>
-                  </div>
-
-                  <div className="metric-value success-text">Disabled</div>
-
-                  <div className="metric-foot">
-                    Dashboard does not execute actions
-                  </div>
-                </div>
-              </div>
-
-              {auditError && (
-                <div className="error-banner">{auditError}</div>
-              )}
-
-              <ResultCard title="Audit log">
-                {audit.length ? (
-                  <div className="audit-table-wrap">
-                    <table className="audit-table">
-                      <thead>
-                        <tr>
-                          <th>RECORD / TIME</th>
-                          <th>PREDICTED ATTACK</th>
-                          <th>CONFIDENCE</th>
-                          <th>DECISION / PRIORITY</th>
-                          <th>VERIFICATION</th>
-                          <th>ACTION</th>
-                          <th>DETAILS</th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {audit.map((record, i) => {
-                          const isSimulation = isSimulationRecord(record);
-                          const recordVerification =
-                            record.verification || {};
-
-                          const timestamp = getRecordTimestamp(record);
-                          const predictedAttack = getRecordAttack(record);
-                          const confidence = getRecordConfidence(record);
-                          const decision = getRecordDecision(record);
-                          const priority = getRecordPriority(record);
-                          const verified = getRecordVerification(record);
-                          const actionTaken = getRecordAction(record);
-                          const permissionText =
-                            getRecordPermissionText(record);
-
-                          return (
-                            <tr key={`${timestamp || "record"}-${i}`}>
-                              <td className="audit-record-cell">
-                                <span className="record-id">
-                                  #{audit.length - i}
-                                </span>
-
-                                <small className="audit-timestamp">
-                                  {formatTimestamp(timestamp)}
-                                </small>
-                              </td>
-
-                              <td className="audit-attack-cell">
-                                <div>{predictedAttack}</div>
-
-                                {isSimulation && (
-                                  <small className="audit-secondary-text">
-                                    Simulated response
-                                  </small>
-                                )}
-                              </td>
-
-                              <td>{confidence}</td>
-
-                              <td className="audit-decision-cell">
-                                <span
-                                  className={`table-tag audit-decision-tag ${getDecisionClass(
-                                    decision
-                                  )}`}
-                                >
-                                  {decision}
-                                </span>
-
-                                {!isSimulation && (
-                                  <small className="audit-secondary-text">
-                                    <span className="audit-secondary-label">
-                                      Priority
-                                    </span>
-
-                                    <span className="audit-priority-value">
-                                      {priority}
-                                    </span>
-                                  </small>
-                                )}
-                              </td>
-
-                              <td className="audit-verification-cell">
-                                <span
-                                  className={`table-tag ${
-                                    verified === true
-                                      ? "audit-verified-tag"
-                                      : verified === false
-                                        ? "audit-failed-tag"
-                                        : ""
-                                  }`}
-                                >
-                                  {verified === true
-                                    ? "Verified"
-                                    : verified === false
-                                      ? "Failed"
-                                      : "Not recorded"}
-                                </span>
-
-                                {recordVerification.errors?.length > 0 && (
-                                  <small className="audit-secondary-text">
-                                    {recordVerification.errors.length} error(s)
-                                  </small>
-                                )}
-                              </td>
-
-                              <td className="audit-action-cell">
-                                <span className="table-tag safe-tag">
-                                  {isSimulation
-                                    ? "Simulated"
-                                    : actionTaken
-                                      ? "Action taken"
-                                      : "No action"}
-                                </span>
-
-                                <small className="audit-secondary-text">
-                                  {permissionText}
-                                </small>
-                              </td>
-
-                              <td className="audit-details-cell">
-                                <details>
-                                  <summary>Inspect JSON</summary>
-                                  <pre>{pretty(record)}</pre>
-                                </details>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="empty-state">
-                    {auditError ||
-                      "No audit records found in the API response."}
+              {audit.length === 0 ? (
+                <div className="empty-state">
+                  <h3>No audit records found</h3>
+                  <p>
+                    Run an analysis or simulation to generate records, if the
+                    backend supports recording that event.
                   </p>
-                )}
-              </ResultCard>
+                </div>
+              ) : (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Event</th>
+                        <th>Decision</th>
+                        <th>Priority</th>
+                        <th>Confidence</th>
+                        <th>Verification</th>
+                        <th>Execution</th>
+                      </tr>
+                    </thead>
 
-              <div className="notice">
-                <span>ⓘ</span>
-                <p>
-                  These are application audit records, not cryptographically
-                  tamper-proof logs. Protect the file and its permissions
-                  separately for production use.
-                </p>
-              </div>
-            </>
-          )}
+                    <tbody>
+                      {audit.map((record, index) => {
+                        const verified = getRecordVerification(record);
 
-          <footer className="footer">
-            <span>CYBER THREAT DEFENSE</span>
+                        return (
+                          <tr key={record.id || `${getRecordTimestamp(record)}-${index}`}>
+                            <td>{formatTimestamp(getRecordTimestamp(record))}</td>
 
-            <span>
-              Local research dashboard <i /> Safe mode active
-            </span>
-          </footer>
-        </div>
+                            <td>
+                              <strong>{getRecordAttack(record)}</strong>
+                              {isSimulationRecord(record) && (
+                                <span className="table-subtext">
+                                  Simulation only
+                                </span>
+                              )}
+                            </td>
+
+                            <td>
+                              <span
+                                className={`decision-badge ${getDecisionClass(
+                                  getRecordDecision(record)
+                                )}`}
+                              >
+                                {getRecordDecision(record)}
+                              </span>
+                            </td>
+
+                            <td>{pretty(getRecordPriority(record))}</td>
+
+                            <td>{getRecordConfidence(record)}</td>
+
+                            <td>
+                              {verified === true
+                                ? "Verified"
+                                : verified === false
+                                  ? "Failed"
+                                  : "—"}
+                            </td>
+
+                            <td>
+                              <span
+                                className={`execution-badge ${
+                                  getRecordAction(record)
+                                    ? "execution-warning"
+                                    : "execution-safe"
+                                }`}
+                              >
+                                {getRecordAction(record)
+                                  ? "Action reported"
+                                  : getRecordPermissionText(record)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <ResultCard title="Audit record details">
+              <p className="muted">
+                The complete records below are the data returned by the audit
+                endpoint. Review the raw fields when investigating a mismatch
+                between the displayed summary and the backend record.
+              </p>
+
+              <pre className="json-output">
+                {JSON.stringify(audit, null, 2)}
+              </pre>
+            </ResultCard>
+          </div>
+        )}
       </main>
     </div>
   );
