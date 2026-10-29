@@ -1,0 +1,54 @@
+{
+  "audit_type": "hash-based exact feature-row duplicate screening",
+  "target_column": "Attack_Type",
+  "feature_count": 58,
+  "within_split": {
+    "train": {
+      "rows": 1801872,
+      "unique_feature_hashes": 1773198,
+      "rows_with_duplicate_feature_hash": 49320,
+      "duplicate_hash_groups": 20646
+    },
+    "validation": {
+      "rows": 386116,
+      "unique_feature_hashes": 384403,
+      "rows_with_duplicate_feature_hash": 3283,
+      "duplicate_hash_groups": 1570
+    },
+    "test": {
+      "rows": 386116,
+      "unique_feature_hashes": 384385,
+      "rows_with_duplicate_feature_hash": 3326,
+      "duplicate_hash_groups": 1595
+    }
+  },
+  "cross_split": {
+    "train_vs_validation": {
+      "shared_unique_feature_hashes": 9502,
+      "first_split_rows_matching_other_split": 15158,
+      "second_split_rows_matching_other_split": 10562
+    },
+    "train_vs_test": {
+      "shared_unique_feature_hashes": 9736,
+      "first_split_rows_matching_other_split": 15521,
+      "second_split_rows_matching_other_split": 10802
+    },
+    "validation_vs_test": {
+      "shared_unique_feature_hashes": 2982,
+      "first_split_rows_matching_other_split": 3378,
+      "second_split_rows_matching_other_split": 3360
+    }
+  },
+  "within_split_label_conflicts": {
+    "train": {
+      "feature_hashes_with_conflicting_labels": 350
+    },
+    "validation": {
+      "feature_hashes_with_conflicting_labels": 15
+    },
+    "test": {
+      "feature_hashes_with_conflicting_labels": 16
+    }
+  },
+  "important_note": "Hash matches are a screening result, not proof of leakage. Matching rows should be checked against original feature values. This audit does not detect all forms of related-flow or temporal leakage."
+}

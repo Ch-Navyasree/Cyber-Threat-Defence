@@ -1,0 +1,20 @@
+{
+  "feature_count": 58,
+  "splits": {
+    "train": {
+      "rows": 1801872,
+      "conflicting_feature_groups": 350,
+      "rows_in_conflicting_groups": 707
+    },
+    "validation": {
+      "rows": 386116,
+      "conflicting_feature_groups": 15,
+      "rows_in_conflicting_groups": 30
+    },
+    "test": {
+      "rows": 386116,
+      "conflicting_feature_groups": 16,
+      "rows_in_conflicting_groups": 32
+    }
+  }
+}

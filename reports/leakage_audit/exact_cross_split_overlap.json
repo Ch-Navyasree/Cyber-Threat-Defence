@@ -1,0 +1,14 @@
+{
+  "train_vs_validation": {
+    "shared_feature_vectors": 9502,
+    "shared_vectors_with_label_disagreement": 149
+  },
+  "train_vs_test": {
+    "shared_feature_vectors": 9736,
+    "shared_vectors_with_label_disagreement": 134
+  },
+  "validation_vs_test": {
+    "shared_feature_vectors": 2982,
+    "shared_vectors_with_label_disagreement": 42
+  }
+}

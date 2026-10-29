@@ -1,0 +1,13 @@
+{
+  "dataset": "D:\\Cyber Threat Defense\\data\\processed\\cicids2017_clean.parquet",
+  "rows": 2574104,
+  "columns": 71,
+  "feature_count": 69,
+  "exact_duplicate_rows_including_metadata": 0,
+  "unique_feature_hashes": 2521510,
+  "repeated_feature_hash_groups": 34238,
+  "rows_in_repeated_feature_groups": 86832,
+  "feature_hash_groups_with_conflicting_labels": 698,
+  "repeated_feature_groups_across_source_files": 34204,
+  "note": "Hash-based screening. Hash matches should be verified against actual feature values before drawing conclusions."
+}

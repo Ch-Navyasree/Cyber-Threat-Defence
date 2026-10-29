@@ -1,0 +1,143 @@
+{
+  "model": "Logistic Regression",
+  "target": "Attack_Type",
+  "features": 58,
+  "training_samples": 1801872,
+  "validation_samples": 386116,
+  "accuracy": 0.8985382631126397,
+  "macro_f1": 0.6364303540795344,
+  "training_seconds": 287.3845524999999,
+  "validation_inference_seconds": 0.3225562000000082,
+  "average_inference_ms_per_sample": 0.0008353867749588418,
+  "classification_report": {
+    "BENIGN": {
+      "precision": 0.9994785409010672,
+      "recall": 0.880306975214203,
+      "f1-score": 0.9361152361152361,
+      "support": 322241.0
+    },
+    "BOT": {
+      "precision": 0.01694123145227246,
+      "recall": 0.9897610921501706,
+      "f1-score": 0.03331227384986503,
+      "support": 293.0
+    },
+    "BRUTE_FORCE": {
+      "precision": 0.6207538389948813,
+      "recall": 0.9715950473415877,
+      "f1-score": 0.7575241340147644,
+      "support": 1373.0
+    },
+    "DDoS": {
+      "precision": 0.8158387206532834,
+      "recall": 0.9989584418289762,
+      "f1-score": 0.8981598539120663,
+      "support": 19202.0
+    },
+    "DoS": {
+      "precision": 0.8341174064225813,
+      "recall": 0.9822448558254766,
+      "f1-score": 0.9021411076874457,
+      "support": 29062.0
+    },
+    "PORT_SCAN": {
+      "precision": 0.7103091706705661,
+      "recall": 0.9983850840490347,
+      "f1-score": 0.830063165603735,
+      "support": 13623.0
+    },
+    "WEB_ATTACK": {
+      "precision": 0.05140719049943061,
+      "recall": 0.9813664596273292,
+      "f1-score": 0.09769670737362807,
+      "support": 322.0
+    },
+    "accuracy": 0.8985382631126397,
+    "macro avg": {
+      "precision": 0.5784065856562975,
+      "recall": 0.9718025651481111,
+      "f1-score": 0.6364303540795344,
+      "support": 386116.0
+    },
+    "weighted avg": {
+      "precision": 0.9648141320926344,
+      "recall": 0.8985382631126397,
+      "f1-score": 0.9259094421481526,
+      "support": 386116.0
+    }
+  },
+  "class_labels": [
+    "BENIGN",
+    "BOT",
+    "BRUTE_FORCE",
+    "DDoS",
+    "DoS",
+    "PORT_SCAN",
+    "WEB_ATTACK"
+  ],
+  "confusion_matrix": [
+    [
+      283671,
+      16805,
+      800,
+      4065,
+      5660,
+      5537,
+      5703
+    ],
+    [
+      3,
+      290,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      1,
+      0,
+      1334,
+      0,
+      2,
+      0,
+      36
+    ],
+    [
+      11,
+      3,
+      0,
+      19182,
+      6,
+      0,
+      0
+    ],
+    [
+      116,
+      20,
+      14,
+      265,
+      28546,
+      10,
+      91
+    ],
+    [
+      13,
+      0,
+      1,
+      0,
+      7,
+      13601,
+      1
+    ],
+    [
+      4,
+      0,
+      0,
+      0,
+      2,
+      0,
+      316
+    ]
+  ]
+}

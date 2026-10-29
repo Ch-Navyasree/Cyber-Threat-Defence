@@ -1,0 +1,219 @@
+{
+  "report_title": "Cyber Threat Defence — End-to-End Workflow Evaluation",
+  "generated_at_utc": "2026-10-29T10:35:27.502610+00:00",
+  "project_root": "D:\\Cyber Threat Defense",
+  "detector_metrics": {
+    "status": "loaded",
+    "source": "reports\\heldout_test_comparison_v1.json",
+    "experiment": "V1",
+    "dataset": "CICIDS2017 selected_v2",
+    "evaluation": "held-out test set",
+    "test_records": 386116,
+    "features": 58,
+    "thresholds": {
+      "BOT": 0.8,
+      "WEB_ATTACK": 0.8
+    },
+    "production": {
+      "accuracy": 0.988985,
+      "macro_precision": 0.799088,
+      "macro_recall": 0.913926,
+      "macro_f1": 0.844403
+    },
+    "experiment_v1": {
+      "accuracy": 0.992536,
+      "macro_precision": 0.860749,
+      "macro_recall": 0.897017,
+      "macro_f1": 0.876649
+    },
+    "decision": "Keep production unchanged. V1 is a research candidate; evaluate minority-class trade-offs before promotion.",
+    "note": "These are saved held-out detector metrics. They are not workflow-level scores and were not recalculated by this script."
+  },
+  "workflow_scenario_metrics": {
+    "evaluation_type": "scenario-level smoke evaluation",
+    "validation_dataset": "data\\processed\\transformed\\selected_v2\\validation.parquet",
+    "sampling_method": "First available validation row for each expected class",
+    "warning": "At most one sample per class. These scenario results are not a statistically representative benchmark and must not be presented as full-dataset workflow accuracy.",
+    "scenarios_requested": 7,
+    "scenarios_completed": 7,
+    "scenarios_skipped_or_failed": 0,
+    "workflow_success_rate": 0.8571,
+    "detection_match_rate_on_scenarios": 0.8571,
+    "decision_correctness_rate": 0.8571,
+    "safety_policy_compliance_rate": 1.0,
+    "verification_success_rate": 1.0,
+    "audit_recorded_rate": 1.0,
+    "mcp_status_counts": {
+      "found": 7
+    },
+    "latency_ms": {
+      "mean": 1720.17,
+      "median": 1695.566,
+      "max": 1860.622
+    },
+    "response_execution_enabled": false,
+    "scenarios": [
+      {
+        "actual_label": "BENIGN",
+        "status": "completed",
+        "predicted_label": "BENIGN",
+        "confidence": 0.99991,
+        "detection_correct": true,
+        "expected_decision": "MONITOR",
+        "actual_decision": "MONITOR",
+        "decision_correct": true,
+        "mcp_status": "found",
+        "safety_compliant": true,
+        "verification_success": true,
+        "audit_recorded": true,
+        "action_taken": false,
+        "latency_ms": 1859.289,
+        "workflow_success": true
+      },
+      {
+        "actual_label": "BOT",
+        "status": "completed",
+        "predicted_label": "BENIGN",
+        "confidence": 0.967358,
+        "detection_correct": false,
+        "expected_decision": "INVESTIGATE",
+        "actual_decision": "MONITOR",
+        "decision_correct": false,
+        "mcp_status": "found",
+        "safety_compliant": true,
+        "verification_success": true,
+        "audit_recorded": true,
+        "action_taken": false,
+        "latency_ms": 1837.108,
+        "workflow_success": false
+      },
+      {
+        "actual_label": "BRUTE_FORCE",
+        "status": "completed",
+        "predicted_label": "BRUTE_FORCE",
+        "confidence": 0.999385,
+        "detection_correct": true,
+        "expected_decision": "INVESTIGATE",
+        "actual_decision": "INVESTIGATE",
+        "decision_correct": true,
+        "mcp_status": "found",
+        "safety_compliant": true,
+        "verification_success": true,
+        "audit_recorded": true,
+        "action_taken": false,
+        "latency_ms": 1577.983,
+        "workflow_success": true
+      },
+      {
+        "actual_label": "DDoS",
+        "status": "completed",
+        "predicted_label": "DDoS",
+        "confidence": 0.999789,
+        "detection_correct": true,
+        "expected_decision": "INVESTIGATE",
+        "actual_decision": "INVESTIGATE",
+        "decision_correct": true,
+        "mcp_status": "found",
+        "safety_compliant": true,
+        "verification_success": true,
+        "audit_recorded": true,
+        "action_taken": false,
+        "latency_ms": 1597.377,
+        "workflow_success": true
+      },
+      {
+        "actual_label": "DoS",
+        "status": "completed",
+        "predicted_label": "DoS",
+        "confidence": 0.999592,
+        "detection_correct": true,
+        "expected_decision": "INVESTIGATE",
+        "actual_decision": "INVESTIGATE",
+        "decision_correct": true,
+        "mcp_status": "found",
+        "safety_compliant": true,
+        "verification_success": true,
+        "audit_recorded": true,
+        "action_taken": false,
+        "latency_ms": 1695.566,
+        "workflow_success": true
+      },
+      {
+        "actual_label": "PORT_SCAN",
+        "status": "completed",
+        "predicted_label": "PORT_SCAN",
+        "confidence": 0.98581,
+        "detection_correct": true,
+        "expected_decision": "INVESTIGATE",
+        "actual_decision": "INVESTIGATE",
+        "decision_correct": true,
+        "mcp_status": "found",
+        "safety_compliant": true,
+        "verification_success": true,
+        "audit_recorded": true,
+        "action_taken": false,
+        "latency_ms": 1613.243,
+        "workflow_success": true
+      },
+      {
+        "actual_label": "WEB_ATTACK",
+        "status": "completed",
+        "predicted_label": "WEB_ATTACK",
+        "confidence": 0.994592,
+        "detection_correct": true,
+        "expected_decision": "INVESTIGATE",
+        "actual_decision": "INVESTIGATE",
+        "decision_correct": true,
+        "mcp_status": "found",
+        "safety_compliant": true,
+        "verification_success": true,
+        "audit_recorded": true,
+        "action_taken": false,
+        "latency_ms": 1860.622,
+        "workflow_success": true
+      }
+    ]
+  },
+  "component_resilience_checks": {
+    "evaluation_type": "component resilience checks",
+    "cases": 3,
+    "completed": 3,
+    "policy_compliance_rate": 1.0,
+    "warning": "MCP outcomes in this section are simulated inputs. They do not measure live MCP availability or real-world threat-intelligence coverage.",
+    "results": [
+      {
+        "simulated_mcp_case": "found",
+        "decision": "INVESTIGATE",
+        "safety_approved": true,
+        "action_permitted": false,
+        "action_taken": false,
+        "policy_compliant": true,
+        "status": "completed"
+      },
+      {
+        "simulated_mcp_case": "not_found",
+        "decision": "INVESTIGATE",
+        "safety_approved": true,
+        "action_permitted": false,
+        "action_taken": false,
+        "policy_compliant": true,
+        "status": "completed"
+      },
+      {
+        "simulated_mcp_case": "error",
+        "decision": "INVESTIGATE",
+        "safety_approved": true,
+        "action_permitted": false,
+        "action_taken": false,
+        "policy_compliant": true,
+        "status": "completed"
+      }
+    ]
+  },
+  "interpretation": {
+    "detector_metrics": "Held-out classification metrics loaded from the saved detector report.",
+    "workflow_scenario_metrics": "Small, real-workflow scenario checks; rates are not full-dataset classifier metrics.",
+    "component_resilience_checks": "Planner/policy checks with simulated MCP statuses, not live service rates.",
+    "response_execution": "Disabled. The workflow may recommend MONITOR, INVESTIGATE, or MANUAL_REVIEW, but this evaluation does not execute mitigation."
+  }
+}
